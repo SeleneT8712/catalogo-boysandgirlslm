@@ -72,6 +72,8 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
   var fmt = function (n) { return '$' + Number(n).toLocaleString('en-US'); };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var ICON_BAG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7h12l-1 13H7L6 7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>';
+  var ICON_PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  var ICON_CART = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.6l2.3 11.2a1.6 1.6 0 0 0 1.6 1.3h8.4a1.6 1.6 0 0 0 1.6-1.2l1.6-6.8H6.2"/></svg>';
   var ICON_WA = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M17.6 6.32A8.86 8.86 0 0 0 12.02 3.5c-4.87 0-8.83 3.96-8.83 8.83 0 1.56.41 3.08 1.18 4.42L3.1 21.5l4.87-1.28a8.8 8.8 0 0 0 4.05 1h.01c4.87 0 8.83-3.96 8.83-8.83 0-2.36-.92-4.58-2.59-6.24zM12.02 19.7h-.01a7.33 7.33 0 0 1-3.74-1.02l-.27-.16-2.78.73.74-2.71-.18-.28a7.32 7.32 0 0 1-1.12-3.9c0-4.05 3.3-7.35 7.36-7.35 1.96 0 3.81.77 5.2 2.16a7.3 7.3 0 0 1 2.15 5.2c0 4.05-3.3 7.35-7.35 7.35zm4.03-5.5c-.22-.11-1.3-.64-1.5-.72-.2-.07-.35-.11-.5.11-.15.22-.57.72-.7.87-.13.15-.26.17-.48.06-.22-.11-.93-.34-1.77-1.09-.65-.58-1.1-1.3-1.22-1.52-.13-.22-.01-.34.1-.45.1-.1.22-.26.33-.39.11-.13.15-.22.22-.37.07-.15.04-.28-.02-.39-.06-.11-.5-1.2-.68-1.64-.18-.43-.36-.37-.5-.38h-.43c-.15 0-.39.06-.59.28-.2.22-.78.76-.78 1.85s.8 2.15.91 2.3c.11.15 1.57 2.4 3.8 3.36.53.23.95.37 1.27.47.53.17 1.02.15 1.4.09.43-.06 1.3-.53 1.49-1.05.18-.52.18-.96.13-1.05-.06-.1-.2-.15-.42-.26z"/></svg>';
 
   /* ---------- lectura de cada pieza ---------- */
@@ -113,7 +115,10 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     var mk = card.querySelector('.card-marca');
     var marca = mk ? mk.textContent.trim() : '';
     var img = card.querySelector('img[src^="data:"]');
-    return { num: num, name: name, info: info.join(' · '), tallaLine: tallaLine, sizes: sizeOptions(tallaLine), price: price,
+    var all = Array.prototype.filter.call(document.querySelectorAll('article.card'), function (c) { return c.querySelector('a[href*="wa.me/"]'); });
+    var page = location.pathname.replace(/^\/+|\/+$/g, '').replace(/\.html$/, '') || 'inicio';
+    var ref = page + '/' + (all.indexOf(card) + 1);
+    return { ref: ref, num: num, name: name, info: info.join(' · '), tallaLine: tallaLine, sizes: sizeOptions(tallaLine), price: price,
              catalogo: catalogo, marca: marca, page: location.pathname, imgEl: img };
   }
   function thumbOf(imgEl) {
@@ -129,7 +134,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
   function decorate() {
     document.querySelectorAll('article.card').forEach(function (card) {
       if (card.__bgc) return; var a = card.querySelector('a[href*="wa.me/"]'); if (!a) return; card.__bgc = true;
-      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'bgc-add'; btn.innerHTML = ICON_BAG + 'Agregar';
+      var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'bgc-add'; btn.innerHTML = ICON_PLUS + 'Agregar';
       btn.addEventListener('click', function (ev) { ev.stopPropagation(); var p = parseCard(card); if (p) openPicker(p, btn); });
       a.parentNode.insertBefore(btn, a);
       a.classList.add('bgc-secondary');
@@ -140,7 +145,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
   /* ---------- UI ---------- */
   var root = document.createElement('div'); root.className = 'bgc';
   root.innerHTML =
-    '<button class="bgc-fab" type="button" hidden aria-label="Ver carrito">' + ICON_BAG + '<span>Mi carrito</span><span class="bgc-n">0</span></button>' +
+    '<button class="bgc-fab" type="button" hidden aria-label="Ver carrito">' + ICON_CART + '<span>Mi carrito</span><span class="bgc-n">0</span></button>' +
     '<div class="bgc-ov bgc-sheet" id="bgcPick" hidden><div class="bgc-panel" role="dialog" aria-modal="true" aria-labelledby="bgcPickT"><div class="bgc-hd"><h3 id="bgcPickT">Elige tu talla</h3><button class="bgc-x" type="button" aria-label="Cerrar">&times;</button></div><div class="bgc-body" id="bgcPickB"></div><div class="bgc-ft"><div class="bgc-warn" id="bgcPickW" hidden>Elige una talla para continuar</div><button class="bgc-primary" type="button" id="bgcPickOk">Agregar al carrito</button></div></div></div>' +
     '<div class="bgc-ov" id="bgcCart" hidden><div class="bgc-panel" role="dialog" aria-modal="true" aria-labelledby="bgcCartT"><div class="bgc-hd"><h3 id="bgcCartT">Mi carrito</h3><button class="bgc-x" type="button" aria-label="Cerrar">&times;</button></div><div class="bgc-body" id="bgcList"></div><div class="bgc-ft" id="bgcFt"></div></div></div>' +
     '<div class="bgc-toast" hidden><span id="bgcToastT">Agregado al carrito</span><button type="button" id="bgcToastB">Ver carrito</button></div>';
@@ -193,12 +198,12 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     if (!pending) return;
     if (!pending.talla) { root.querySelector('#bgcPickW').hidden = false; return; }
     var p = pending.p; cart = load();
-    var ex = cart.filter(function (x) { return x.name === p.name && x.talla === pending.talla && x.catalogo === p.catalogo && x.price === p.price && x.info === p.info; })[0];
+    var ex = cart.filter(function (x) { return (x.ref && p.ref ? x.ref === p.ref : x.name === p.name) && x.talla === pending.talla && x.catalogo === p.catalogo && x.price === p.price && x.info === p.info; })[0];
     if (ex) ex.qty += pending.qty;
     else cart.push({ id: Date.now() + Math.random().toString(36).slice(2, 6), name: p.name, marca: p.marca, catalogo: p.catalogo, info: p.info, tallaLine: p.tallaLine,
-                     sizes: p.sizes, talla: pending.talla, qty: pending.qty, price: p.price, num: p.num, page: p.page, thumb: thumbOf(p.imgEl) });
+                     ref: p.ref, sizes: p.sizes, talla: pending.talla, qty: pending.qty, price: p.price, num: p.num, page: p.page, thumb: thumbOf(p.imgEl) });
     save(cart); pick.hidden = true;
-    if (pending.btn) { var bt = pending.btn; bt.classList.add('bgc-added'); bt.innerHTML = 'Agregado ✓'; setTimeout(function () { bt.classList.remove('bgc-added'); bt.innerHTML = ICON_BAG + 'Agregar'; }, 1800); }
+    if (pending.btn) { var bt = pending.btn; bt.classList.add('bgc-added'); bt.innerHTML = 'Agregado ✓'; setTimeout(function () { bt.classList.remove('bgc-added'); bt.innerHTML = ICON_PLUS + 'Agregar'; }, 1800); }
     root.querySelector('#bgcToastT').textContent = 'Agregado al carrito (' + count() + ')';
     toast.hidden = false; clearTimeout(tt); tt = setTimeout(function () { toast.hidden = true; }, 3500);
     pending = null;
@@ -217,6 +222,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
         n++; m += n + '. ' + (x.marca && g.indexOf(x.marca) < 0 && x.marca !== 'Polo Ralph Lauren' ? x.marca + ' — ' : '') + x.name + '\n';
         if (x.info) m += '   ' + x.info + '\n';
         m += '   Talla: ' + x.talla + ' · Cantidad: ' + x.qty + '\n';
+        if (x.ref) m += '   Ref: ' + x.ref + '\n';
         if (x.price) { m += '   Precio: ' + fmt(x.price) + ' MXN' + (x.qty > 1 ? ' c/u' : '') + '\n'; total += x.price * x.qty; } else { m += '   Precio: por confirmar\n'; pend++; }
       });
     });
