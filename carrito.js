@@ -58,6 +58,11 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
 .bgc-empty{padding:40px 10px;text-align:center;color:var(--c-muted);font-size:.85rem}
 .bgc-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + env(safe-area-inset-bottom,0px));z-index:960;background:#16233b;color:#fff;border-radius:999px;padding:10px 16px;font-size:.82rem;font-weight:600;box-shadow:0 8px 24px -8px rgba(0,0,0,.45);display:flex;gap:12px;align-items:center;white-space:nowrap}
 .bgc-toast button{background:none;border:0;color:#8fd4a3;font:inherit;font-weight:700;cursor:pointer;padding:0}
+.bgc-agot .card-media img,.bgc-agot .card-media picture{filter:grayscale(1);opacity:.55}
+.bgc-soldout{position:absolute;top:8px;left:8px;z-index:4;background:#b3261e;color:#fff;font:700 .68rem/1 "Work Sans",system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;padding:6px 9px;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.bgc-add[disabled]{background:#9aa1ab;cursor:not-allowed}
+.bgc-item.bgc-gone{border-color:var(--c-warn);opacity:.8}
+.bgc-gone-t{font-size:.72rem;font-weight:700;color:var(--c-warn)}
 .bgc-chip:focus-visible,.bgc-add:focus-visible,.bgc-fab:focus-visible,.bgc-send:focus-visible,.bgc-primary:focus-visible{outline:2px solid #6c9bd8;outline-offset:2px}
 `;
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
@@ -95,6 +100,22 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     if (/\//.test(s)) return s.replace(/\(consultar[^)]*\)/i, '').split('/').map(function (x) { return x.trim(); }).filter(Boolean);
     return [];
   }
+  function fnv(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; } return h.toString(36); }
+  function cardRef(card) {
+    if (card.__bgcRef) return card.__bgcRef;
+    var page = location.pathname.replace(/^\/+|\/+$/g, '').replace(/\.html$/, '') || 'inicio';
+    var a = card.querySelector('a[href*="wa.me/"]'), text = '';
+    try { text = new URL(a.href).searchParams.get('text') || ''; } catch (e) {}
+    var pm = text.match(/Precio:\s*\$\s*([\d,]+)/i); var price = pm ? pm[1].replace(/,/g, '') : '0';
+    var img = card.querySelector('img'), sig = '';
+    if (img) { var k = img.getAttribute('data-k'); var src = img.getAttribute('src') || ''; sig = k ? 'k:' + k : (src.indexOf('data:') === 0 ? src.slice(Math.floor(src.length / 2), Math.floor(src.length / 2) + 64) : ''); }
+    var nm = card.querySelector('.card-name'); sig += '|n:' + (nm ? nm.textContent : '').replace(/[^A-Za-z0-9]/g, '');
+    card.__bgcRef = page + '/' + fnv(price + '|' + sig);
+    return card.__bgcRef;
+  }
+  window.__bgCartRef = cardRef;
+  var AGOT = {};
+  function agotInfo(ref) { return ref && AGOT[ref] ? AGOT[ref] : null; }
   function parseCard(card) {
     var a = card.querySelector('a[href*="wa.me/"]'); if (!a) return null;
     var u; try { u = new URL(a.href); } catch (e) { return null; }
@@ -115,10 +136,10 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     var mk = card.querySelector('.card-marca');
     var marca = mk ? mk.textContent.trim() : '';
     var img = card.querySelector('img[src^="data:"]');
-    var all = Array.prototype.filter.call(document.querySelectorAll('article.card'), function (c) { return c.querySelector('a[href*="wa.me/"]'); });
-    var page = location.pathname.replace(/^\/+|\/+$/g, '').replace(/\.html$/, '') || 'inicio';
-    var ref = page + '/' + (all.indexOf(card) + 1);
-    return { ref: ref, num: num, name: name, info: info.join(' · '), tallaLine: tallaLine, sizes: sizeOptions(tallaLine), price: price,
+    var ref = cardRef(card);
+    var ag = agotInfo(ref); var sizes = sizeOptions(tallaLine);
+    if (ag && ag.tallas && ag.tallas.length) sizes = sizes.filter(function (z) { return ag.tallas.indexOf(z) < 0; });
+    return { ref: ref, num: num, name: name, info: info.join(' · '), tallaLine: tallaLine, sizes: sizes, price: price,
              catalogo: catalogo, marca: marca, page: location.pathname, imgEl: img };
   }
   function thumbOf(imgEl) {
@@ -141,6 +162,29 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
       if (!/av[ií]same/i.test(a.textContent)) { var svg = a.querySelector('svg'); a.textContent = ''; if (svg) a.appendChild(svg); a.appendChild(document.createTextNode(' Preguntar')); }
     });
   }
+
+  function markSoldOut() { markCards(); cart = load(); render(); }
+  function markCards() {
+    document.querySelectorAll('article.card').forEach(function (card) {
+      if (!card.querySelector('a[href*="wa.me/"]')) return;
+      var ag = agotInfo(cardRef(card)); if (!ag || card.__bgcAg) return; card.__bgcAg = true;
+      var full = !(ag.tallas && ag.tallas.length);
+      var media = card.querySelector('.card-media') || card;
+      if (getComputedStyle(media).position === 'static') media.style.position = 'relative';
+      var b = document.createElement('span'); b.className = 'bgc-soldout'; b.textContent = full ? 'Agotado' : 'Agotada talla ' + ag.tallas.join(', ');
+      media.appendChild(b);
+      if (full) {
+        card.classList.add('bgc-agot');
+        var add = card.querySelector('.bgc-add'); if (add) { add.disabled = true; add.textContent = 'Agotado'; }
+      }
+    });
+  }
+  try {
+    fetch('/agotados.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : []; }).then(function (list) {
+      (list || []).forEach(function (a) { if (a && a.ref) AGOT[a.ref] = a; });
+      markSoldOut();
+    }).catch(function () {});
+  } catch (e) {}
 
   /* ---------- UI ---------- */
   var root = document.createElement('div'); root.className = 'bgc';
@@ -238,11 +282,14 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     if (!cart.length) { list.innerHTML = '<div class="bgc-empty">Tu carrito está vacío.<br>Toca "Agregar" en las piezas que te gusten.</div>'; return; }
     var missing = 0, total = 0, pend = 0;
     cart.forEach(function (x) {
+      var ag = agotInfo(x.ref); var gone = ag && (!(ag.tallas && ag.tallas.length) || ag.tallas.indexOf(x.talla) > -1);
+      x.gone = !!gone;
       if (!x.talla) missing++;
       if (x.price) total += x.price * x.qty; else pend++;
-      var it = document.createElement('div'); it.className = 'bgc-item' + (x.talla ? '' : ' bgc-missing');
+      var it = document.createElement('div'); it.className = 'bgc-item' + (x.talla ? '' : ' bgc-missing') + (x.gone ? ' bgc-gone' : '');
       it.innerHTML = (x.thumb ? '<img class="bgc-th" alt="" src="' + x.thumb + '">' : '<div class="bgc-th"></div>') +
         '<div class="bgc-meta">' + '<span class="bgc-brand">' + esc(x.marca || x.catalogo) + (x.marca && x.catalogo && x.catalogo !== x.marca ? ' · ' + esc(x.catalogo) : '') + '</span>' +
+        (x.gone ? '<span class="bgc-gone-t">Esta pieza se agotó' + (ag && ag.tallas && ag.tallas.length ? ' en talla ' + esc(x.talla) : '') + '. Quítala para enviar tu pedido.</span>' : '') +
         '<span class="bgc-name">' + esc(x.name) + '</span>' + (x.info ? '<span class="bgc-det">' + esc(x.info) + '</span>' : '') +
         '<div class="bgc-lbl">Talla ' + (x.talla ? '' : '<em>· falta elegir</em>') + '</div><div class="bgc-sz"></div>' +
         '<div class="bgc-row"><div class="bgc-qty"><button type="button" aria-label="Menos">−</button><span>' + x.qty + '</span><button type="button" aria-label="Más">+</button></div>' +
@@ -263,13 +310,14 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
       '<button class="bgc-rm" type="button" id="bgcEmpty">Vaciar carrito</button>';
     ft.querySelector('#bgcEmpty').addEventListener('click', function () { var b = this; if (b.dataset.ok) { cart = []; save(cart); } else { b.dataset.ok = 1; b.textContent = 'Toca otra vez para vaciar'; } });
     ft.querySelector('#bgcSend').addEventListener('click', function (e) {
+      if (cart.some(function (x) { return x.gone; })) { e.preventDefault(); var w0 = ft.querySelector('#bgcMiss'); w0.hidden = false; w0.textContent = 'Quita las piezas agotadas antes de enviar.'; var g = list.querySelector('.bgc-gone'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       if (cart.some(function (x) { return !x.talla; })) { e.preventDefault(); var w = ft.querySelector('#bgcMiss'); w.hidden = false; w.textContent = 'Elige la talla de todas las piezas antes de enviar.'; var f = list.querySelector('.bgc-missing'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
     });
     updateFt();
   }
   function updateFt() {
     var s = root.querySelector('#bgcSend'); if (!s) return;
-    var miss = cart.filter(function (x) { return !x.talla; }).length;
+    var miss = cart.filter(function (x) { return !x.talla || x.gone; }).length;
     var num = (cart[0] && cart[0].num) || WA_DEFAULT;
     s.href = 'https://wa.me/' + num + '?text=' + encodeURIComponent(message());
     s.setAttribute('aria-disabled', miss ? 'true' : 'false');
@@ -277,5 +325,5 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
   }
 
   decorate(); render();
-  var raf = 0; new MutationObserver(function () { if (!raf) raf = requestAnimationFrame(function () { raf = 0; decorate(); }); }).observe(document.body, { childList: true, subtree: true });
+  var raf = 0; new MutationObserver(function () { if (!raf) raf = requestAnimationFrame(function () { raf = 0; decorate(); if (Object.keys(AGOT).length) markCards(); }); }).observe(document.body, { childList: true, subtree: true });
 })();
