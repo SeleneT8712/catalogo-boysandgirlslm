@@ -106,7 +106,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     var page = location.pathname.replace(/^\/+|\/+$/g, '').replace(/\.html$/, '') || 'inicio';
     var a = card.querySelector('a[href*="wa.me/"]'), text = '';
     try { text = new URL(a.href).searchParams.get('text') || ''; } catch (e) {}
-    var pm = text.match(/Precio:\s*\$\s*([\d,]+)/i); var price = pm ? pm[1].replace(/,/g, '') : '0';
+    var pm = text.match(/Precio:\s*\$\s*([\d,]+)/i); var price = a.getAttribute('data-precio-base') || (pm ? pm[1].replace(/,/g, '') : '0');
     var img = card.querySelector('img'), sig = '';
     if (img) { var k = img.getAttribute('data-k'); var src = img.getAttribute('src') || ''; sig = k ? 'k:' + k : (src.indexOf('data:') === 0 ? src.slice(Math.floor(src.length / 2), Math.floor(src.length / 2) + 64) : ''); }
     var nm = card.querySelector('.card-name'); sig += '|n:' + (nm ? nm.textContent : '').replace(/[^A-Za-z0-9]/g, '');
