@@ -15,18 +15,20 @@
   "fecha": "2026-09-26"
  },
  {
-  "ref": "ralph-lauren-vestidos-nina/17t5qlo",
+  "ref": "ralph-lauren-nina/35rm6j",
   "nombre": "Ruffle-Trim Plaid Cotton Twill Dress",
   "tallas": [
    "14"
   ],
-  "fecha": "2026-09-26"
+  "fecha": "2026-09-26",
+  "ref_anterior": "ralph-lauren-vestidos-nina/17t5qlo"
  },
  {
-  "ref": "ralph-lauren-vestidos-nina/1dgsqu7",
+  "ref": "ralph-lauren-nina/1ltvyry",
   "nombre": "Polo Bear Striped Cotton Shirtdress",
   "tallas": [],
   "nota": "Agotado en azul (el color de la foto)",
-  "fecha": "2026-09-26"
+  "fecha": "2026-09-26",
+  "ref_anterior": "ralph-lauren-vestidos-nina/1dgsqu7"
  }
 ]
