@@ -529,7 +529,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeZoom();
   var byK={};cards.forEach(function(c){var im=c.querySelector('img[data-k]');if(im)(byK[im.getAttribute('data-k')]=byK[im.getAttribute('data-k')]||[]).push(im);});
   var cs={};
   window.__nvImg=function(n,map){cs[n]='ok';for(var k in map)(byK[k]||[]).forEach(function(im){im.src='data:image/jpeg;base64,'+map[k];});};
-  function load(n){if(cs[n])return;cs[n]='loading';var sc=document.createElement('script');sc.src='/nv-'+n+'.js';sc.onerror=function(){cs[n]=null;};document.body.appendChild(sc);}
+  function load(n){if(cs[n])return;cs[n]='loading';var sc=document.createElement('script');sc.src='/nvsel-'+n+'.js';sc.onerror=function(){cs[n]=null;};document.body.appendChild(sc);}
   if('IntersectionObserver' in window){var obs=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){load(e.target.getAttribute('data-chunk'));obs.unobserve(e.target);}});},{rootMargin:'1400px 0px'});cards.forEach(function(c){obs.observe(c);});}
   else cards.forEach(function(c){load(c.getAttribute('data-chunk'));});
   var TIPOS=["santa", "renos", "nieve", "gingerbread", "animales", "gnomos", "personajes"],ESTILOS=["clasico", "elegante", "rustico", "infantil", "rosa"];
