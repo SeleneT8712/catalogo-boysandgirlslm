@@ -327,3 +327,19 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
   decorate(); render();
   var raf = 0; new MutationObserver(function () { if (!raf) raf = requestAnimationFrame(function () { raf = 0; decorate(); if (Object.keys(AGOT).length) markCards(); }); }).observe(document.body, { childList: true, subtree: true });
 })();
+
+/* Filtro desde la liga: /gap#para=Niña abre la página ya filtrada (Bebé, Niña, Niño) */
+(function () {
+  try {
+    var m = decodeURIComponent(location.hash || '').match(/para=([^&\/]+)/);
+    if (!m) return;
+    var v = m[1];
+    var go = function () {
+      var b = document.querySelector('[data-filter="' + v + '"]') || document.querySelector('[data-filter="looks-' + v + '"]') ||
+              document.querySelector('.tab[data-seccion="' + v + '"]') || document.querySelector('[data-tab="' + v + '"]');
+      if (b) { b.click(); try { b.scrollIntoView({ block: 'center' }); } catch (e) {} }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(go, 60); });
+    else setTimeout(go, 60);
+  } catch (e) {}
+})();
