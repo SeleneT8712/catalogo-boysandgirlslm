@@ -1,6 +1,21 @@
 /* Carrito Boys & Girls LM — un solo carrito para todo catalogo.boysandgirlslm.com */
 (function () {
   if (window.__bgCart) return; window.__bgCart = true;
+
+  /* ---------- estadísticas (Google Analytics) ---------- */
+  var GA_ID = 'G-HRR0BR4HSX';
+  var GA_ON = /(^|\.)boysandgirlslm\.com$/.test(location.hostname);
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+  if (GA_ON && !window.__bgGA) {
+    window.__bgGA = true;
+    window.gtag('js', new Date());
+    window.gtag('config', GA_ID, { page_title: document.title });
+    var gs = document.createElement('script'); gs.async = true; gs.src = 'https://www.googletagmanager.com/gtag/js?id=' + GA_ID;
+    (document.head || document.documentElement).appendChild(gs);
+  }
+  function track(ev, params) { if (!GA_ON) return; try { window.gtag('event', ev, params || {}); } catch (e) {} }
+  var PAGINA = (location.pathname.replace(/^\/|\.html$/g, '') || 'portada');
   var KEY = 'bg_carrito_v1';
   var WA_DEFAULT = '526688328530';
   var LETTERS = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
@@ -250,6 +265,8 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     else cart.push({ id: Date.now() + Math.random().toString(36).slice(2, 6), name: p.name, marca: p.marca, catalogo: p.catalogo, info: p.info, tallaLine: p.tallaLine,
                      ref: p.ref, sizes: p.sizes, talla: pending.talla, qty: pending.qty, price: p.price, num: p.num, page: p.page, thumb: thumbOf(p.imgEl) });
     save(cart); pick.hidden = true;
+    track('add_to_cart', { currency: 'MXN', value: (p.price || 0) * pending.qty, pagina: PAGINA,
+      items: [{ item_name: p.name, item_brand: p.marca || p.catalogo, item_category: p.catalogo, item_variant: pending.talla, price: p.price || 0, quantity: pending.qty }] });
     if (pending.btn) { var bt = pending.btn; bt.classList.add('bgc-added'); bt.innerHTML = 'Agregado ✓'; setTimeout(function () { bt.classList.remove('bgc-added'); bt.innerHTML = ICON_PLUS + 'Agregar'; }, 1800); }
     root.querySelector('#bgcToastT').textContent = 'Agregado al carrito (' + count() + ')';
     toast.hidden = false; clearTimeout(tt); tt = setTimeout(function () { toast.hidden = true; }, 3500);
@@ -257,7 +274,9 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
   });
 
   function count() { return cart.reduce(function (s, x) { return s + (x.qty || 1); }, 0); }
-  function openCart() { cart = load(); render(); cartOv.hidden = false; }
+  function openCart() { cart = load(); render(); cartOv.hidden = false; track('view_cart', { currency: 'MXN', value: cartValue(), piezas: count(), pagina: PAGINA }); }
+  function cartValue() { return cart.reduce(function (s, x) { return s + (x.price || 0) * (x.qty || 1); }, 0); }
+  function cartItems() { return cart.map(function (x) { return { item_name: x.name, item_brand: x.marca || x.catalogo, item_category: x.catalogo, item_variant: x.talla, price: x.price || 0, quantity: x.qty || 1 }; }); }
   function message() {
     var groups = {}; var order = [];
     cart.forEach(function (x) { var g = x.marca && x.marca !== x.catalogo && !/ralph lauren|cat & jack/i.test(x.catalogo) ? x.catalogo : (x.catalogo || x.marca); if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(x); });
@@ -314,7 +333,9 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     ft.querySelector('#bgcEmpty').addEventListener('click', function () { var b = this; if (b.dataset.ok) { cart = []; save(cart); } else { b.dataset.ok = 1; b.textContent = 'Toca otra vez para vaciar'; } });
     ft.querySelector('#bgcSend').addEventListener('click', function (e) {
       if (cart.some(function (x) { return x.gone; })) { e.preventDefault(); var w0 = ft.querySelector('#bgcMiss'); w0.hidden = false; w0.textContent = 'Quita las piezas agotadas antes de enviar.'; var g = list.querySelector('.bgc-gone'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-      if (cart.some(function (x) { return !x.talla; })) { e.preventDefault(); var w = ft.querySelector('#bgcMiss'); w.hidden = false; w.textContent = 'Elige la talla de todas las piezas antes de enviar.'; var f = list.querySelector('.bgc-missing'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      if (cart.some(function (x) { return !x.talla; })) { e.preventDefault(); var w = ft.querySelector('#bgcMiss'); w.hidden = false; w.textContent = 'Elige la talla de todas las piezas antes de enviar.'; var f = list.querySelector('.bgc-missing'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      track('begin_checkout', { currency: 'MXN', value: cartValue(), items: cartItems() });
+      track('pedido_whatsapp', { currency: 'MXN', value: cartValue(), piezas: count(), pagina: PAGINA });
     });
     updateFt();
   }
@@ -326,6 +347,19 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     s.setAttribute('aria-disabled', miss ? 'true' : 'false');
     var w = root.querySelector('#bgcMiss'); if (w && !miss) w.hidden = true;
   }
+
+  /* clics en "Preguntar"/WhatsApp de cada pieza y en los filtros */
+  document.addEventListener('click', function (e) {
+    var t = e.target && e.target.closest ? e.target : null; if (!t) return;
+    var a = t.closest('a[href*="wa.me/"]');
+    if (a && a.id !== 'bgcSend') {
+      var card = a.closest('article, .card'), nm = card && card.querySelector('.card-name, h3');
+      track('preguntar_whatsapp', { item_name: nm ? nm.textContent.trim().slice(0, 100) : '', pagina: PAGINA });
+      return;
+    }
+    var ch = t.closest('[data-f][data-v], .tab[data-seccion], [data-filter]');
+    if (ch) track('filtro', { filtro: ch.getAttribute('data-f') || 'seccion', valor: ch.getAttribute('data-v') || ch.getAttribute('data-seccion') || ch.getAttribute('data-filter') || 'todo', pagina: PAGINA });
+  }, true);
 
   decorate(); render();
   var raf = 0; new MutationObserver(function () { if (!raf) raf = requestAnimationFrame(function () { raf = 0; decorate(); if (Object.keys(AGOT).length) markCards(); }); }).observe(document.body, { childList: true, subtree: true });
