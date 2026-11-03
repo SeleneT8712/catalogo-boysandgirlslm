@@ -142,7 +142,9 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     var nameEl = card.querySelector('.card-name');
     var name = lines[0] || (nameEl ? nameEl.textContent.trim() : '');
     var det = lines.slice(1).filter(function (l) { return !/^precio/i.test(l); });
-    var tallaLine = det.filter(function (l) { return /^(tallas?|talla:|kids|baby|toddler|cintura)/i.test(l); })[0] || '';
+    var opcion = card.getAttribute('data-opcion') || '';
+    if (opcion) det = det.filter(function (l) { return l.toLowerCase().indexOf(opcion.toLowerCase() + ':') !== 0; });
+    var tallaLine = opcion ? '' : (det.filter(function (l) { return /^(tallas?|talla:|kids|baby|toddler|cintura)/i.test(l); })[0] || '');
     var info = det.filter(function (l) { return l !== tallaLine; });
     var pm = text.match(/Precio:\s*\$\s*([\d,]+)/i);
     var price = pm ? parseInt(pm[1].replace(/,/g, ''), 10) : null;
@@ -152,10 +154,10 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     var marca = mk ? mk.textContent.trim() : '';
     var img = card.querySelector('img[src^="data:"]');
     var ref = cardRef(card);
-    var ag = agotInfo(ref); var sizes = sizeOptions(tallaLine);
+    var ag = agotInfo(ref); var sizes = opcion ? (card.getAttribute('data-opciones') || '').split('|').filter(Boolean) : sizeOptions(tallaLine);
     if (ag && ag.tallas && ag.tallas.length) sizes = sizes.filter(function (z) { return ag.tallas.indexOf(z) < 0; });
     return { ref: ref, num: num, name: name, info: info.join(' · '), tallaLine: tallaLine, sizes: sizes, price: price,
-             catalogo: catalogo, marca: marca, page: location.pathname, imgEl: img, sinTalla: card.hasAttribute('data-sin-talla') };
+             catalogo: catalogo, marca: marca, page: location.pathname, imgEl: img, sinTalla: card.hasAttribute('data-sin-talla'), opcion: opcion, preset: opcion ? (card.getAttribute('data-sel') || '') : '' };
   }
   function thumbOf(imgEl) {
     try {
@@ -236,17 +238,17 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     return box;
   }
   function openPicker(p, btn) {
-    pending = { p: p, talla: '', qty: 1, btn: btn };
+    pending = { p: p, talla: p.preset || '', qty: 1, btn: btn };
     var b = root.querySelector('#bgcPickB'); b.innerHTML = '';
     var head = document.createElement('div'); head.className = 'bgc-meta';
     head.innerHTML = (p.marca ? '<span class="bgc-brand">' + esc(p.marca) + '</span>' : '') + '<span class="bgc-name">' + esc(p.name) + '</span>' +
       (p.info ? '<span class="bgc-det">' + esc(p.info) + '</span>' : '') + (p.tallaLine ? '<span class="bgc-det">' + esc(p.tallaLine) + '</span>' : '') +
       '<span class="bgc-price">' + (p.price ? fmt(p.price) + ' MXN' : 'Precio por confirmar') + '</span>';
     b.appendChild(head);
-    root.querySelector('#bgcPickT').textContent = p.sinTalla ? 'Elige la cantidad' : 'Elige tu talla';
+    root.querySelector('#bgcPickT').textContent = p.sinTalla ? 'Elige la cantidad' : (p.opcion ? 'Elige el ' + p.opcion.toLowerCase() : 'Elige tu talla');
     if (p.sinTalla) { pending.talla = 'Única'; } else {
-    var l = document.createElement('div'); l.className = 'bgc-lbl'; l.textContent = p.sizes.length ? 'Talla' : 'Talla que buscas'; b.appendChild(l);
-    b.appendChild(sizeControl(p.sizes, '', function (v) { pending.talla = v; root.querySelector('#bgcPickW').hidden = true; }, 'bgcPickIn'));
+    var l = document.createElement('div'); l.className = 'bgc-lbl'; l.textContent = p.opcion || (p.sizes.length ? 'Talla' : 'Talla que buscas'); b.appendChild(l);
+    b.appendChild(sizeControl(p.sizes, pending.talla, function (v) { pending.talla = v; root.querySelector('#bgcPickW').hidden = true; }, 'bgcPickIn'));
     }
     var l2 = document.createElement('div'); l2.className = 'bgc-lbl'; l2.textContent = 'Cantidad'; b.appendChild(l2);
     var q = document.createElement('div'); q.className = 'bgc-qty'; q.innerHTML = '<button type="button" aria-label="Menos">−</button><span>1</span><button type="button" aria-label="Más">+</button>';
@@ -254,7 +256,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     qb[0].addEventListener('click', function () { pending.qty = Math.max(1, pending.qty - 1); qs.textContent = pending.qty; });
     qb[1].addEventListener('click', function () { pending.qty = Math.min(20, pending.qty + 1); qs.textContent = pending.qty; });
     b.appendChild(q);
-    root.querySelector('#bgcPickW').hidden = true;
+    root.querySelector('#bgcPickW').hidden = true; root.querySelector('#bgcPickW').textContent = p.opcion ? 'Elige un ' + p.opcion.toLowerCase() + ' para continuar' : 'Elige una talla para continuar';
     pick.hidden = false;
   }
   root.querySelector('#bgcPickOk').addEventListener('click', function () {
@@ -264,7 +266,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     var ex = cart.filter(function (x) { return (x.ref && p.ref ? x.ref === p.ref : x.name === p.name) && x.talla === pending.talla && x.catalogo === p.catalogo && x.price === p.price && x.info === p.info; })[0];
     if (ex) ex.qty += pending.qty;
     else cart.push({ id: Date.now() + Math.random().toString(36).slice(2, 6), name: p.name, marca: p.marca, catalogo: p.catalogo, info: p.info, tallaLine: p.tallaLine,
-                     ref: p.ref, sizes: p.sizes, talla: pending.talla, qty: pending.qty, price: p.price, num: p.num, page: p.page, thumb: thumbOf(p.imgEl) });
+                     ref: p.ref, sizes: p.sizes, opcion: p.opcion || '', talla: pending.talla, qty: pending.qty, price: p.price, num: p.num, page: p.page, thumb: thumbOf(p.imgEl) });
     save(cart); pick.hidden = true;
     track('add_to_cart', { currency: 'MXN', value: (p.price || 0) * pending.qty, pagina: PAGINA,
       items: [{ item_name: p.name, item_brand: p.marca || p.catalogo, item_category: p.catalogo, item_variant: pending.talla, price: p.price || 0, quantity: pending.qty }] });
@@ -288,7 +290,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
       groups[g].forEach(function (x) {
         n++; m += n + '. ' + (x.marca && g.indexOf(x.marca) < 0 && x.marca !== 'Polo Ralph Lauren' ? x.marca + ' — ' : '') + x.name + '\n';
         if (x.info) m += '   ' + x.info + '\n';
-        m += '   Talla: ' + x.talla + ' · Cantidad: ' + x.qty + '\n';
+        m += '   ' + (x.opcion || 'Talla') + ': ' + x.talla + ' · Cantidad: ' + x.qty + '\n';
         if (x.ref) m += '   Ref: ' + x.ref + '\n';
         if (x.price) { m += '   Precio: ' + fmt(x.price) + ' MXN' + (x.qty > 1 ? ' c/u' : '') + '\n'; total += x.price * x.qty; } else { m += '   Precio: por confirmar\n'; pend++; }
       });
@@ -314,7 +316,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
         '<div class="bgc-meta">' + '<span class="bgc-brand">' + esc(x.marca || x.catalogo) + (x.marca && x.catalogo && x.catalogo !== x.marca ? ' · ' + esc(x.catalogo) : '') + '</span>' +
         (x.gone ? '<span class="bgc-gone-t">Esta pieza se agotó' + (ag && ag.tallas && ag.tallas.length ? ' en talla ' + esc(x.talla) : '') + '. Quítala para enviar tu pedido.</span>' : '') +
         '<span class="bgc-name">' + esc(x.name) + '</span>' + (x.info ? '<span class="bgc-det">' + esc(x.info) + '</span>' : '') +
-        '<div class="bgc-lbl">Talla ' + (x.talla ? '' : '<em>· falta elegir</em>') + '</div><div class="bgc-sz"></div>' +
+        '<div class="bgc-lbl">' + esc(x.opcion || 'Talla') + ' ' + (x.talla ? '' : '<em>· falta elegir</em>') + '</div><div class="bgc-sz"></div>' +
         '<div class="bgc-row"><div class="bgc-qty"><button type="button" aria-label="Menos">−</button><span>' + x.qty + '</span><button type="button" aria-label="Más">+</button></div>' +
         '<span class="bgc-price">' + (x.price ? fmt(x.price * x.qty) : 'Por confirmar') + '</span></div>' +
         '<div><button class="bgc-rm" type="button">Quitar</button></div></div>';
@@ -334,7 +336,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
     ft.querySelector('#bgcEmpty').addEventListener('click', function () { var b = this; if (b.dataset.ok) { cart = []; save(cart); } else { b.dataset.ok = 1; b.textContent = 'Toca otra vez para vaciar'; } });
     ft.querySelector('#bgcSend').addEventListener('click', function (e) {
       if (cart.some(function (x) { return x.gone; })) { e.preventDefault(); var w0 = ft.querySelector('#bgcMiss'); w0.hidden = false; w0.textContent = 'Quita las piezas agotadas antes de enviar.'; var g = list.querySelector('.bgc-gone'); if (g) g.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-      if (cart.some(function (x) { return !x.talla; })) { e.preventDefault(); var w = ft.querySelector('#bgcMiss'); w.hidden = false; w.textContent = 'Elige la talla de todas las piezas antes de enviar.'; var f = list.querySelector('.bgc-missing'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      if (cart.some(function (x) { return !x.talla; })) { e.preventDefault(); var w = ft.querySelector('#bgcMiss'); w.hidden = false; w.textContent = 'Elige la talla (o color) de todas las piezas antes de enviar.'; var f = list.querySelector('.bgc-missing'); if (f) f.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       track('begin_checkout', { currency: 'MXN', value: cartValue(), items: cartItems() });
       track('pedido_whatsapp', { currency: 'MXN', value: cartValue(), piezas: count(), pagina: PAGINA });
     });
