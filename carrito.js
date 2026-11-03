@@ -170,6 +170,7 @@ a.wa-btn.bgc-secondary,a.bgc-secondary{background:transparent!important;color:in
   function decorate() {
     document.querySelectorAll('article.card').forEach(function (card) {
       if (card.__bgc) return; var a = card.querySelector('a[href*="wa.me/"]'); if (!a) return; card.__bgc = true;
+      if (card.hasAttribute('data-sin-carrito')) return;
       var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'bgc-add'; btn.innerHTML = ICON_PLUS + 'Agregar';
       btn.addEventListener('click', function (ev) { ev.stopPropagation(); var p = parseCard(card); if (p) openPicker(p, btn); });
       a.parentNode.insertBefore(btn, a);
